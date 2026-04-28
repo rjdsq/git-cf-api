@@ -11,18 +11,16 @@
     body::after { content:""; position:fixed; top:0; left:0; width:100%; height:100%; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,65,0.02) 2px,rgba(0,255,65,0.02) 4px); pointer-events:none; z-index:998; }
     .container { padding: 20px; max-width: 800px; margin: 0 auto; position: relative; z-index: 10; }
     
-    /* 登录页面 */
     #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--b); z-index: 9999; display: flex; align-items: center; justify-content: center; flex-direction: column; }
     #login-screen input { width: 300px; background: rgba(0,0,0,0.5); border: 1px solid rgba(0,255,65,0.3); color: var(--c); padding: 15px; margin-bottom: 20px; text-align: center; letter-spacing: 2px; }
     #login-screen button { width: 300px; background: transparent; color: var(--c); border: 1px solid var(--c); padding: 15px; cursor: pointer; letter-spacing: 4px; }
+    #login-screen button:hover { background: rgba(0,255,65,0.2); }
     
-    /* 底部导航 */
     .nav { position: fixed; bottom: 0; left: 0; right: 0; height: 50px; background: #000; border-top: 1px solid rgba(0,255,65,0.3); display: flex; align-items: center; z-index: 1000; }
     .ni { flex: 1; text-align: center; cursor: pointer; opacity: 0.6; height: 100%; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(0,255,65,0.3); }
     .ni:last-child { border-right: none; }
     .ni.active { opacity: 1; font-weight: bold; background: rgba(0,255,65,0.1); }
     
-    /* 通用组件 */
     input, textarea, select { width: 100%; background: #000; border: 1px solid var(--c); color: var(--c); padding: 8px; margin-bottom: 10px; font-family: monospace; }
     textarea.add-api { height: 100px; resize: vertical; }
     .btn { border: 1px solid var(--c); padding: 8px 15px; color: var(--c); background: none; cursor: pointer; display: inline-block; transition: 0.2s; }
@@ -49,9 +47,9 @@
   <div id="toast" class="toast"></div>
 
   <div id="login-screen">
-    <div style="font-size:20px; margin-bottom:30px; letter-spacing: 5px;">[ 系 统 登 录 ]</div>
-    <input type="password" id="login-pwd" placeholder="输入控制台密码">
-    <button onclick="checkLogin()">进 入 终 端</button>
+    <div style="font-size:20px; margin-bottom:30px; letter-spacing: 5px; text-shadow: 0 0 10px rgba(0,255,65,0.5);">[ 核 心 终 端 ]</div>
+    <input type="password" id="login-token" placeholder="> 输入 GitHub TOKEN 验证身份 _">
+    <button onclick="loginWithToken()">[ 接 入 系 统 ]</button>
   </div>
 
   <div id="main-app" style="display:none;">
@@ -60,47 +58,33 @@
       <div id="group-list"></div>
       <div class="fab-br">
         <button class="btn" onclick="addGroup()">新增分组</button>
-        <button class="btn btn-main" onclick="saveToGitHub()">同步至云端</button>
+        <button class="btn btn-main" onclick="saveToGitHub()">同步并构建</button>
       </div>
     </div>
 
     <div class="container" id="tc" style="display:none;">
-      <div style="font-weight:bold; margin-bottom:15px; border-bottom:1px solid var(--c); padding-bottom:5px;">>>> 订阅路径映射</div>
+      <div style="font-weight:bold; margin-bottom:15px; border-bottom:1px solid var(--c); padding-bottom:5px;">>>> 订阅分发配置</div>
       <div id="path-list"></div>
       <div class="fab-br">
         <button class="btn" onclick="addPath()">新增路径</button>
-        <button class="btn btn-main" onclick="saveToGitHub()">同步至云端</button>
+        <button class="btn btn-main" onclick="saveToGitHub()">同步并构建</button>
       </div>
     </div>
 
     <div class="container" id="tl" style="display:none;">
       <div style="font-weight:bold; margin-bottom:15px; border-bottom:1px solid var(--c); padding-bottom:5px;">>>> 客户端分发链接 (点击复制)</div>
       <div id="api-links"></div>
-      <div style="margin-top:20px; font-size:11px; opacity:0.6;">* 提示: 修改配置后，云端 Actions 约需 1 分钟生成最新文件。</div>
-    </div>
-
-    <div class="container" id="ts" style="display:none;">
-      <div style="font-weight:bold; margin-bottom:15px; border-bottom:1px solid var(--c); padding-bottom:5px;">>>> 核心环境变量</div>
-      
-      <label>控制台登录密码 (本地校验)</label>
-      <input type="password" id="password" placeholder="设置后需使用此密码进入界面">
-      
-      <label>GitHub Token (需 repo 权限)</label>
-      <input type="password" id="token" placeholder="ghp_xxxxxxxx">
-      
-      <button class="btn btn-main" style="width:100%; margin-top:15px;" onclick="saveSystem()">保存环境变量</button>
+      <div style="margin-top:20px; font-size:11px; opacity:0.6;">* 数据同步后，云端 Actions 约需 1 分钟完成最新节点的抓取与静态发布。</div>
     </div>
 
     <nav class="nav">
       <div class="ni active" id="n-a" onclick="switchTab('a')">[ API池 ]</div>
       <div class="ni" id="n-c" onclick="switchTab('c')">[ API配置 ]</div>
       <div class="ni" id="n-l" onclick="switchTab('l')">[ API列表 ]</div>
-      <div class="ni" id="n-s" onclick="switchTab('s')">[ 环境变量 ]</div>
     </nav>
   </div>
 
   <script>
-    // --- 矩阵背景动画 ---
     const c=document.getElementById('cvs'),ctx=c.getContext('2d');
     let w=c.width=window.innerWidth,h=c.height=window.innerHeight,pts=[];
     window.onresize=()=>{w=c.width=window.innerWidth;h=c.height=window.innerHeight;};
@@ -115,9 +99,9 @@
     }
     d();
 
-    // --- 数据与状态 ---
     let config = { groups: [], paths: [] };
     let fileSha = '';
+    let currentToken = '';
 
     function toast(msg) {
       const el = document.getElementById('toast');
@@ -125,101 +109,75 @@
       setTimeout(() => el.style.opacity = 0, 2500);
     }
 
-    // --- 自动获取当前 GitHub 仓库名 ---
     function getAutoRepo() {
       const host = window.location.hostname;
       const path = window.location.pathname;
-      // 匹配标准的 username.github.io/repo 格式
       if (host.includes('github.io')) {
-        const owner = host.split('.')[0];
-        const repo = path.split('/')[1] || '';
-        return `${owner}/${repo}`.replace(/\/$/, ''); // 清理末尾斜杠
+        return `${host.split('.')[0]}/${path.split('/')[1] || ''}`.replace(/\/$/, '');
       }
       return null;
     }
 
-    // --- 登录逻辑 ---
-    function checkLogin() {
-      const input = document.getElementById('login-pwd').value;
-      const savedPwd = localStorage.getItem('password') || '';
-      if (savedPwd === '' || input === savedPwd) {
+    async function loginWithToken() {
+      const tokenInput = document.getElementById('login-token').value.trim();
+      const repo = getAutoRepo();
+      
+      if (!repo) {
+        toast('仅支持在 GitHub Pages 环境下运行');
+        return;
+      }
+      if (!tokenInput) {
+        toast('> 错误：凭证不可为空');
+        return;
+      }
+
+      document.getElementById('login-token').value = '正在验证密钥权限...';
+      try {
+        const res = await fetch(`https://api.github.com/repos/${repo}/contents/config.json`, {
+          headers: { 'Authorization': `token ${tokenInput}` }
+        });
+        
+        if (!res.ok) throw new Error(res.status);
+        
+        const data = await res.json();
+        fileSha = data.sha;
+        config = JSON.parse(decodeURIComponent(escape(atob(data.content))));
+        if(!config.groups) config.groups = [];
+        if(!config.paths) config.paths = [];
+        
+        currentToken = tokenInput; 
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
-        loadSystemConfig();
-        fetchFromGitHub();
-      } else {
-        toast('密码错误');
+        renderGroups();
+        renderPaths();
+        toast('接入成功');
+      } catch (e) {
+        document.getElementById('login-token').value = '';
+        toast('> 错误：密钥无效或无读取权限');
       }
     }
 
-    // --- 切换 Tab ---
     function switchTab(x) {
-      ['a','c','l','s'].forEach(id => {
+      ['a','c','l'].forEach(id => {
         document.getElementById(`t${id}`).style.display = (x===id) ? 'block' : 'none';
         document.getElementById(`n-${id}`).classList.toggle('active', x===id);
       });
       if (x === 'l') renderLinks();
     }
 
-    // --- 环境变量读取/保存 ---
-    function loadSystemConfig() {
-      document.getElementById('password').value = localStorage.getItem('password') || '';
-      document.getElementById('token').value = localStorage.getItem('token') || '';
-    }
-
-    function saveSystem() {
-      localStorage.setItem('password', document.getElementById('password').value);
-      localStorage.setItem('token', document.getElementById('token').value);
-      toast('环境变量已保存本地');
-    }
-
-    // --- 与 GitHub 交互 ---
-    async function fetchFromGitHub() {
-      const repo = getAutoRepo();
-      const token = localStorage.getItem('token');
-      
-      if (!repo) {
-        toast('非 GitHub Pages 环境，无法自动识别仓库名');
-        return;
-      }
-      if (!token) { 
-        toast('请先在环境变量中配置 Token'); 
-        return; 
-      }
-
-      toast('正在拉取云端配置...');
-      try {
-        const res = await fetch(`https://api.github.com/repos/${repo}/contents/config.json`, {
-          headers: { 'Authorization': `token ${token}` }
-        });
-        if (!res.ok) throw new Error();
-        const data = await res.json();
-        fileSha = data.sha;
-        config = JSON.parse(decodeURIComponent(escape(atob(data.content))));
-        if(!config.groups) config.groups = [];
-        if(!config.paths) config.paths = [];
-        renderGroups();
-        renderPaths();
-        toast('配置同步完成');
-      } catch (e) {
-        toast('拉取失败，请检查 Token 或初始化 config.json');
-      }
-    }
-
     async function saveToGitHub() {
       flushInputs();
       const repo = getAutoRepo();
-      const token = localStorage.getItem('token');
-      if (!repo || !token || !fileSha) { toast('环境或凭证不足，无法保存'); return; }
+      if (!repo || !currentToken || !fileSha) { toast('环境错误，无法构建'); return; }
 
-      toast('正在写入 GitHub...');
+      toast('正在同步并触发云端构建...');
       try {
         const contentStr = JSON.stringify(config, null, 2);
         const res = await fetch(`https://api.github.com/repos/${repo}/contents/config.json`, {
           method: 'PUT',
-          headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+          headers: { 'Authorization': `token ${currentToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            message: "Update config via Web UI",
+            message: "Update routing config via Terminal",
             content: btoa(unescape(encodeURIComponent(contentStr))),
             sha: fileSha
           })
@@ -227,22 +185,21 @@
         if (!res.ok) throw new Error();
         const data = await res.json();
         fileSha = data.content.sha;
-        toast('保存成功！已触发后台更新任务');
+        toast('数据已写入！Actions 构建任务已启动');
       } catch (e) {
-        toast('写入失败');
+        toast('同步失败，请检查网络或权限');
       }
     }
 
-    // --- 分组管理 (API池) ---
     function renderGroups() {
       const html = config.groups.map((g, i) => `
         <details open>
           <summary>
-            <span>[分组] <input value="${g.name}" onchange="config.groups[${i}].name=this.value" style="width:120px; border:none; border-bottom:1px solid var(--c); background:none; padding:2px; margin:0"></span>
+            <span>[源] <input value="${g.name}" onchange="config.groups[${i}].name=this.value" style="width:120px; border:none; border-bottom:1px solid var(--c); background:none; padding:2px; margin:0"></span>
             <span class="del-btn" onclick="config.groups.splice(${i},1); renderGroups(); renderPaths();">✖ 删除</span>
           </summary>
           <div class="group-body">
-            <textarea class="add-api" id="add-api-${i}" placeholder="粘贴新接口或节点，一行一个"></textarea>
+            <textarea class="add-api" id="add-api-${i}" placeholder="录入 API 链接或纯节点，按行分割"></textarea>
             ${g.urls.map((u, ui) => `
               <div class="url-row">
                 <input value="${u}" onchange="config.groups[${i}].urls[${ui}]=this.value">
@@ -252,12 +209,12 @@
           </div>
         </details>
       `).join('');
-      document.getElementById('group-list').innerHTML = html || '<div style="opacity:0.5">暂无分组</div>';
+      document.getElementById('group-list').innerHTML = html || '<div style="opacity:0.5">尚未配置节点源</div>';
     }
 
     function addGroup() {
       const id = 'g' + Date.now();
-      config.groups.push({ id, name: '新分组', urls: [] });
+      config.groups.push({ id, name: '未命名分组', urls: [] });
       renderGroups(); renderPaths();
     }
 
@@ -273,49 +230,47 @@
       renderGroups();
     }
 
-    // --- 路径管理 (API配置) ---
     function renderPaths() {
       const groupOptions = `<option value="all">混合全部分组 (All)</option>` + 
         config.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
 
       const html = config.paths.map((p, i) => {
         const selectedHTML = (p.groupIds || []).map(gid => {
-          let gname = gid === 'all' ? '全部分组' : (config.groups.find(x => x.id === gid)?.name || '未知分组');
+          let gname = gid === 'all' ? '全部分组' : (config.groups.find(x => x.id === gid)?.name || '无效来源');
           return `<span style="background:rgba(0,255,65,0.1); padding:2px 8px; margin-right:5px; border:1px solid var(--c); font-size:11px;">${gname} <span style="cursor:pointer" onclick="config.paths[${i}].groupIds=config.paths[${i}].groupIds.filter(x=>x!=='${gid}'); renderPaths()">✖</span></span>`;
         }).join('');
 
         return `
         <details open>
           <summary>
-            <span>[路径] <input value="${p.name}" onchange="config.paths[${i}].name=this.value" style="width:120px; border:none; border-bottom:1px solid var(--c); background:none; padding:2px; margin:0"></span>
+            <span>[线] <input value="${p.name}" onchange="config.paths[${i}].name=this.value" style="width:120px; border:none; border-bottom:1px solid var(--c); background:none; padding:2px; margin:0"></span>
             <span class="del-btn" onclick="config.paths.splice(${i},1); renderPaths()">✖ 删除</span>
           </summary>
           <div class="group-body">
-            <label>生成文件名 (无需加 .txt)</label>
+            <label>指向文件名 (系统自动补充 .txt)</label>
             <input value="${p.path}" onchange="config.paths[${i}].path=this.value.replace(/[^a-zA-Z0-9_-]/g,'')">
-            <label>绑定节点来源</label>
-            <div style="margin-bottom:10px">${selectedHTML || '<span style="opacity:0.5;font-size:11px">未绑定任何数据</span>'}</div>
+            <label>源数据绑定</label>
+            <div style="margin-bottom:10px">${selectedHTML || '<span style="opacity:0.5;font-size:11px">暂无绑定记录</span>'}</div>
             <select onchange="if(this.value){ if(!config.paths[${i}].groupIds) config.paths[${i}].groupIds=[]; if(!config.paths[${i}].groupIds.includes(this.value)) config.paths[${i}].groupIds.push(this.value); this.value=''; renderPaths(); }">
-              <option value="">+ 添加绑定来源</option>
+              <option value="">+ 新增数据源节点流</option>
               ${groupOptions}
             </select>
           </div>
         </details>`;
       }).join('');
-      document.getElementById('path-list').innerHTML = html || '<div style="opacity:0.5">暂无路径</div>';
+      document.getElementById('path-list').innerHTML = html || '<div style="opacity:0.5">尚未配置文件路由</div>';
     }
 
     function addPath() {
       const id = 'p' + Date.now();
-      config.paths.push({ id, name: '新分发路径', path: 'sub' + Math.floor(Math.random()*1000), groupIds: [] });
+      config.paths.push({ id, name: '新建分发链路', path: 'route_' + Math.floor(Math.random()*1000), groupIds: [] });
       renderPaths();
     }
 
-    // --- 链接分发 (API列表) ---
     function renderLinks() {
       const repo = getAutoRepo();
       if (!repo) {
-        document.getElementById('api-links').innerHTML = '当前不在 GitHub Pages 环境，无法生成链接';
+        document.getElementById('api-links').innerHTML = '环境验证失败，无法映射网络链路';
         return;
       }
       const html = config.paths.map(p => {
@@ -323,10 +278,10 @@
         const url = `https://raw.githubusercontent.com/${repo}/main/output/${filename}`;
         return `
           <div style="margin-bottom:5px;">${p.name} (/${filename})</div>
-          <div class="copy-box" onclick="navigator.clipboard.writeText('${url}'); toast('链接已复制')">${url}</div>
+          <div class="copy-box" onclick="navigator.clipboard.writeText('${url}'); toast('链接已复制到剪贴板')">${url}</div>
         `;
       }).join('');
-      document.getElementById('api-links').innerHTML = html || '暂无路径记录';
+      document.getElementById('api-links').innerHTML = html || '链路记录为空';
     }
   </script>
 </body>
