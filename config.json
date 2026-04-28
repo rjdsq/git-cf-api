@@ -1,11 +1,8 @@
 {
   "groups": [
-    {
-      "name": "Group1",
-      "urls": [
-        "https://example.com/api/nodes",
-        "1.1.1.1:443#纯净IP"
-      ]
-    }
+    { "id": "g1", "name": "默认源", "urls": [] }
+  ],
+  "paths": [
+    { "id": "p1", "name": "全量订阅", "path": "max", "groupIds": ["all"] }
   ]
 }
