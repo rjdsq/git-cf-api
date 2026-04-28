@@ -1,9 +1,8 @@
 import re
-import subprocess
 import requests
 import os
 import socket
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 API_LIST = [
     "https://bestcf.pages.dev/vps789/top20.txt",
@@ -34,7 +33,7 @@ IP_REG = re.compile(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|([0-9a-fA-F]{1,4}:){1,
 def fetch_content(url):
     try:
         headers = {"User-Agent":"Mozilla/5.0"}
-        resp = requests.get(url,timeout=8,headers=headers)
+        resp = requests.get(url,timeout=15,headers=headers)
         resp.raise_for_status()
         return resp.text
     except Exception:
@@ -47,66 +46,32 @@ def parse_ip(line):
     return None
 
 def resolve_domain(domain):
-    domain_ips = []
+    res_list = []
     try:
-        res = socket.getaddrinfo(domain,None)
-        for item in res:
+        info = socket.getaddrinfo(domain, 443)
+        for item in info:
             ip = item[4][0]
-            domain_ips.append(ip)
+            res_list.append(f"{ip}:443#{domain}")
     except Exception:
         pass
-    return domain_ips
-
-def ping_check(ip_addr):
-    is_ipv6 = ":" in ip_addr
-    if os.name == "nt":
-        if is_ipv6:
-            args = ["ping","-6","-n","1","-w","500",ip_addr]
-        else:
-            args = ["ping","-n","1","-w","500",ip_addr]
-    else:
-        if is_ipv6:
-            args = ["ping","-6","-c","1","-W","0.5",ip_addr]
-        else:
-            args = ["ping","-c","1","-W","0.5",ip_addr]
-    try:
-        ret = subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=2).returncode
-        return ret == 0
-    except:
-        return False
+    return res_list
 
 def main():
     line_pool = []
-    for api in API_LIST:
-        content = fetch_content(api)
-        lines = content.splitlines()
-        for item in lines:
-            trim_line = item.strip()
-            if trim_line:
-                line_pool.append(trim_line)
-    for dom in DOMAIN_LIST:
-        ips = resolve_domain(dom)
-        for ip in ips:
-            line_pool.append(f"{ip}:443#{dom}")
-    unique_line = list(set(line_pool))
-    valid_data = []
-    task_map = {}
-    for line in unique_line:
-        ip = parse_ip(line)
-        if ip:
-            task_map[ip] = line
-    with ThreadPoolExecutor(max_workers=20) as executor:
-        future_ip = {executor.submit(ping_check,ip):(ip,task_map[ip]) for ip in task_map}
-        for future in as_completed(future_ip):
-            ip,raw_line = future_ip[future]
-            try:
-                if future.result():
-                    valid_data.append(raw_line)
-            except:
-                continue
+    for url in API_LIST:
+        text = fetch_content(url)
+        lines = text.splitlines()
+        for l in lines:
+            s = l.strip()
+            if s and parse_ip(s):
+                line_pool.append(s)
+    for d in DOMAIN_LIST:
+        dom_lines = resolve_domain(d)
+        line_pool.extend(dom_lines)
+    unique_lines = list(set(line_pool))
     with open("max.txt","w",encoding="utf-8") as f:
-        for d in valid_data:
-            f.write(d + "\n")
+        for row in unique_lines:
+            f.write(row + "\n")
 
 if __name__ == "__main__":
     main()
