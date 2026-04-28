@@ -1,8 +1,19 @@
 {
   "groups": [
-    { "id": "g1", "name": "默认源", "urls": [] }
+    {
+      "id": "g1",
+      "name": "默认源",
+      "urls": []
+    }
   ],
   "paths": [
-    { "id": "p1", "name": "全量订阅", "path": "max", "groupIds": ["all"] }
+    {
+      "id": "p1",
+      "name": "全量订阅",
+      "path": "max",
+      "groupIds": [
+        "all"
+      ]
+    }
   ]
 }
