@@ -2,7 +2,6 @@ import re
 import requests
 import os
 import socket
-from concurrent.futures import ThreadPoolExecutor
 
 API_LIST = [
     "https://bestcf.pages.dev/vps789/top20.txt",
