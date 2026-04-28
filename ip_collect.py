@@ -43,16 +43,18 @@ def get_area(text):
         return m.group(1)
     return ""
 
-def rebuild_line(raw):
+def get_only_ip(raw):
     ip4 = IPV4_REG.search(raw)
     ip6 = IPV6_REG.search(raw)
-    area = get_area(raw)
     if ip4:
-        ip = ip4.group()
-    elif ip6:
-        ip = ip6.group()
-    else:
-        return raw
+        return ip4.group()
+    if ip6:
+        return ip6.group()
+    return None
+
+def rebuild_line(raw):
+    ip = get_only_ip(raw)
+    area = get_area(raw)
     base = raw.split("#")[0]
     if area:
         new_suffix = f"{area} | {ip}"
@@ -66,30 +68,36 @@ def domain_to_lines(domain):
         addr = socket.getaddrinfo(domain,443)
         for item in addr:
             ip = item[4][0]
-            if ":" in ip and "." not in ip:
-                out.append(f"{ip}:443#{domain}")
-            else:
-                out.append(f"{ip}:443#{domain}")
+            out.append([ip, f"{ip}:443#{domain}"])
     except:
         pass
     return out
 
 def main():
-    all_lines = []
+    ip_seen = set()
+    final_lines = []
     for api in API_LIST:
         txt = get(api)
         lines = txt.splitlines()
         for line in lines:
             s = line.strip()
-            if s:
-                all_lines.append(rebuild_line(s))
+            if not s:
+                continue
+            ip = get_only_ip(s)
+            if not ip or ip in ip_seen:
+                continue
+            ip_seen.add(ip)
+            new_line = rebuild_line(s)
+            final_lines.append(new_line)
     for d in DOMAIN_LIST:
-        d_lines = domain_to_lines(d)
-        all_lines.extend(d_lines)
-    unique = list(set(all_lines))
+        d_list = domain_to_lines(d)
+        for real_ip,line in d_list:
+            if real_ip not in ip_seen:
+                ip_seen.add(real_ip)
+                final_lines.append(line)
     with open("max.txt","w",encoding="utf-8") as f:
-        for l in unique:
-            f.write(l + "\n")
+        for item in final_lines:
+            f.write(item + "\n")
 
 if __name__ == "__main__":
     main()
