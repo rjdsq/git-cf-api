@@ -62,36 +62,41 @@ def get(url):
         return requests.get(url, timeout=12, headers=hd).text
     except: return ""
 
-def get_only_ip(raw):
-    ip4 = IPV4_REG.search(raw); ip6 = IPV6_REG.search(raw)
-    if ip4: return ip4.group()
-    if ip6: return ip6.group()
-    return None
-
 def is_ad_domain(text):
     if re.search(r'[\u4e00-\u9fa5]', text): return False
+    if re.fullmatch(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", text): return False
     return bool(re.match(r"^[a-zA-Z0-9][a-zA-Z0-9\-\.]*\.[a-zA-Z]{2,}$", text.strip()))
 
-def rebuild_line(raw):
-    ip = get_only_ip(raw)
-    if not ip: return raw
-    is_ipv6 = ":" in ip
-    parts = raw.split("#", 1)
-    base = parts[0]; remark = parts[1] if len(parts) > 1 else ""
-    if not remark: return f"{base}#IPV6" if is_ipv6 else f"{base}#{ip}"
+def get_host_from_base(base):
+    ip4 = IPV4_REG.search(base)
+    if ip4: return ip4.group()
+    ip6 = IPV6_REG.search(base)
+    if ip6: return ip6.group()
+    m = re.match(r"^([a-zA-Z0-9\-\.]+)", base.replace('[', '').replace(']', ''))
+    if m: return m.group(1)
+    return None
 
+def rebuild_line(raw):
+    parts = raw.split("#", 1)
+    if len(parts) != 2: return raw
+    base = parts[0]
+    remark = parts[1]
+    
+    is_ipv6 = bool(IPV6_REG.search(base))
+    ip_match = get_host_from_base(base)
+    
     raw_remark_parts = [p.strip() for p in remark.split("|") if p.strip()]
     valid_parts = []
     for p in raw_remark_parts:
         clean_p = re.sub(r'[\[\]]', '', p)
         if re.fullmatch(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d{1,5})?", p): continue
         if IPV6_REG.search(clean_p) and len(clean_p) >= 11: continue
-        if is_ad_domain(p) and p not in DOMAIN_LIST: continue
+        if is_ad_domain(p): continue
         if re.search(r'(?i)\d+(\.\d+)?\s*(ms|mbps|gbps|kb/s|mb/s|m|g)', p): continue
         if re.search(r'\d{2}-\d{2}\s\d{2}:\d{2}', p): continue
         p = re.sub(r'[▼▲]', '', p).strip()
         p = re.sub(r'^(CF优选-|优选-|CF-)', '', p)
-        if not p or p.upper() in ["CF", "4", "CF-4", "优选", "DEFAULT", "ANYCAST", "NONE", "IPV6", "优选IPV6"]: continue
+        if not p or p.upper() in ["CF", "4", "CF-4", "优选", "DEFAULT", "ANYCAST", "NONE", "IPV6", "优选IPV6", "IPV4"]: continue
         valid_parts.append(p)
 
     country_info = None; custom_name = None; rest_parts = []
@@ -125,7 +130,9 @@ def rebuild_line(raw):
     new_remark_list.extend(rest_parts)
     
     new_remark = " | ".join(new_remark_list)
-    if not new_remark: new_remark = "IPV6" if is_ipv6 else ip
+    if not new_remark: 
+        new_remark = "IPV6" if is_ipv6 else (ip_match if ip_match else base.split(":")[0])
+        
     return f"{base}#{new_remark}"
 
 def domain_to_lines(domain):
@@ -133,27 +140,32 @@ def domain_to_lines(domain):
     try:
         addr = socket.getaddrinfo(domain, 443)
         for item in addr:
-            ip = item[4][0]; is_ipv6 = ":" in ip
+            ip = item[4][0]
+            is_ipv6 = ":" in ip
             base = f"[{ip}]:443" if is_ipv6 else f"{ip}:443"
-            raw_line = f"{base}#{domain}"
-            out.append([ip, rebuild_line(raw_line)])
+            remark = "IPV6" if is_ipv6 else ip
+            out.append([ip, f"{base}#{remark}"])
     except: pass
     return out
 
 def main():
-    ip_seen = set(); final_lines = []
+    host_seen = set(); final_lines = []
     for api in API_LIST:
         txt = get(api)
         for line in txt.splitlines():
             s = line.strip()
-            if not s: continue
-            ip = get_only_ip(s)
-            if not ip or ip in ip_seen: continue
-            ip_seen.add(ip); final_lines.append(rebuild_line(s))
+            if not s or "#" not in s: continue
+            base = s.split("#")[0]
+            host = get_host_from_base(base)
+            if not host or host in host_seen: continue
+            host_seen.add(host)
+            final_lines.append(rebuild_line(s))
+            
     for d in DOMAIN_LIST:
         for real_ip, line in domain_to_lines(d):
-            if real_ip not in ip_seen:
-                ip_seen.add(real_ip); final_lines.append(line)
+            if real_ip not in host_seen:
+                host_seen.add(real_ip); final_lines.append(line)
+                
     with open("max.txt", "w", encoding="utf-8") as f:
         for item in final_lines: f.write(item + "\n")
 
