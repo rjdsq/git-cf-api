@@ -29,7 +29,7 @@ DOMAIN_LIST = [
 IPV4_REG = re.compile(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
 IPV6_REG = re.compile(r"([0-9a-fA-F]{1,4}:){2,}[0-9a-fA-F]{0,4}")
 
-# --- 核心字典：映射到最终的带国旗标准名称 ---
+# --- 核心字典：扩展到涵盖全球各类常出现代理的国家 ---
 _BASE_MAP = {
     "US": "🇺🇸 美国", "HK": "🇭🇰 香港", "SG": "🇸🇬 新加坡", "JP": "🇯🇵 日本",
     "KR": "🇰🇷 韩国", "TW": "🇹🇼 台湾", "GB": "🇬🇧 英国", "DE": "🇩🇪 德国",
@@ -39,54 +39,65 @@ _BASE_MAP = {
     "PH": "🇵🇭 菲律宾", "AE": "🇦🇪 阿联酋", "MO": "🇲🇴 澳门", "CN": "🇨🇳 中国",
     "IT": "🇮🇹 意大利", "ES": "🇪🇸 西班牙", "CH": "🇨🇭 瑞士", "SE": "🇸🇪 瑞典",
     "NO": "🇳🇴 挪威", "DK": "🇩🇰 丹麦", "FI": "🇫🇮 芬兰", "PL": "🇵🇱 波兰",
-    "TR": "🇹🇷 土耳其", "AR": "🇦🇷 阿根廷", "MX": "🇲🇽 墨西哥"
+    "TR": "🇹🇷 土耳其", "AR": "🇦🇷 阿根廷", "MX": "🇲🇽 墨西哥", "IE": "🇮🇪 爱尔兰",
+    "IL": "🇮🇱 以色列", "NZ": "🇳🇿 新西兰", "AT": "🇦🇹 奥地利", "CL": "🇨🇱 智利",
+    "PE": "🇵🇪 秘鲁", "RO": "🇷🇴 罗马尼亚", "BG": "🇧🇬 保加利亚", "HU": "🇭🇺 匈牙利",
+    "CZ": "🇨🇿 捷克", "GR": "🇬🇷 希腊", "PT": "🇵🇹 葡萄牙", "IS": "🇮🇸 冰岛",
+    "KZ": "🇰🇿 哈萨克斯坦", "UZ": "🇺🇿 乌兹别克斯坦", "PK": "🇵🇰 巴基斯坦",
+    "NG": "🇳🇬 尼日利亚", "EG": "🇪🇬 埃及"
 }
 
-# --- 扩展别名词典：支持各种机场代码、城市、别称 ---
+# --- 巨型别名词典：机场代码、城市名、口语化简称、运营商特征 ---
 _ALIASES = {
-    # 机场代码 / 缩写
-    "USA": "US", "LAX": "US", "SJC": "US", "FRA": "DE", "NRT": "JP", "HND": "JP",
-    "HKG": "HK", "SGP": "SG", "JPN": "JP", "KOR": "KR", "GBR": "GB",
-    "SIN": "SG", "LHR": "GB", "SYD": "AU", "YVR": "CA", "TPE": "TW", "ICN": "KR",
-    "KIX": "JP", "CDG": "FR", "AMS": "NL", "BOM": "IN", "IAD": "US", "EWR": "US",
-    "LGA": "US", "JFK": "US", "SFO": "US", "SEA": "US", "ORD": "US", "DFW": "US",
-    "MIA": "US", "ATL": "US", "BNE": "AU", "MEL": "AU", "MAD": "ES", "MIL": "IT",
-    "KUL": "MY", "BKK": "TH", "DXB": "AE", "GRU": "BR",
-    # 常用中文地名/别称
-    "美国": "US", "洛杉矶": "US", "圣何塞": "US", "芝加哥": "US", "西雅图": "US", "纽约": "US", "达拉斯": "US",
-    "香港": "HK", "港岛": "HK", "深港": "HK", "广港": "HK", "新加坡": "SG", "狮城": "SG",
-    "日本": "JP", "东京": "JP", "大阪": "JP", "沪日": "JP",
-    "韩国": "KR", "首尔": "KR", "春川": "KR",
-    "台湾": "TW", "台北": "TW", "新北": "TW", "彰化": "TW",
-    "英国": "GB", "伦敦": "GB",
-    "德国": "DE", "法兰克福": "DE", "慕尼黑": "DE",
-    "荷兰": "NL", "阿姆斯特丹": "NL",
-    "法国": "FR", "巴黎": "FR",
-    "澳大利亚": "AU", "澳洲": "AU", "悉尼": "AU", "墨尔本": "AU",
-    "加拿大": "CA", "多伦多": "CA", "温哥华": "CA",
-    "印度": "IN", "孟买": "IN", "新德里": "IN",
-    "巴西": "BR", "圣保罗": "BR",
-    "南非": "ZA", "约翰内斯堡": "ZA",
-    "俄罗斯": "RU", "莫斯科": "RU", "圣彼得堡": "RU",
-    "马来西亚": "MY", "吉隆坡": "MY",
-    "印尼": "ID", "印度尼西亚": "ID", "雅加达": "ID",
-    "泰国": "TH", "曼谷": "TH",
-    "越南": "VN", "胡志明市": "VN", "河内": "VN",
-    "菲律宾": "PH", "马尼拉": "PH",
-    "阿联酋": "AE", "迪拜": "AE",
-    "澳门": "MO", "中国": "CN",
-    "意大利": "IT", "米兰": "IT", "罗马": "IT",
-    "西班牙": "ES", "马德里": "ES",
-    "瑞士": "CH", "苏黎世": "CH"
+    # 香港
+    "HKG": "HK", "HKT": "HK", "HKBN": "HK", "PCCW": "HK", "WTT": "HK", "HGC": "HK", 
+    "香港": "HK", "港岛": "HK", "深港": "HK", "广港": "HK", "沪港": "HK", "京港": "HK", "港": "HK",
+    # 台湾
+    "TWN": "TW", "TPE": "TW", "KHH": "TW", "HINET": "TW", "APTG": "TW", "TSTAR": "TW",
+    "台湾": "TW", "台北": "TW", "新北": "TW", "彰化": "TW", "台中": "TW", "高雄": "TW", "台": "TW",
+    # 日本
+    "JPN": "JP", "TYO": "JP", "OSA": "JP", "NRT": "JP", "HND": "JP", "KIX": "JP", "ITM": "JP", "KDDI": "JP", "IIJ": "JP",
+    "日本": "JP", "东京": "JP", "大阪": "JP", "埼玉": "JP", "琦玉": "JP", "川崎": "JP", "千叶": "JP", "冲绳": "JP", "北海道": "JP", "沪日": "JP", "日": "JP",
+    # 韩国
+    "KOR": "KR", "SEL": "KR", "ICN": "KR", "GMP": "KR",
+    "韩国": "KR", "首尔": "KR", "春川": "KR", "仁川": "KR", "韩": "KR",
+    # 新加坡
+    "SGP": "SG", "SIN": "SG",
+    "新加坡": "SG", "狮城": "SG", "坡县": "SG", "星国": "SG", "新": "SG",
+    # 美国
+    "USA": "US", "LAX": "US", "SJC": "US", "SFO": "US", "SEA": "US", "NYC": "US", "JFK": "US", "EWR": "US", "DFW": "US", "ORD": "US", "MIA": "US", "ATL": "US", "IAD": "US", "PDX": "US", "PHX": "US",
+    "美国": "US", "洛杉矶": "US", "圣何塞": "US", "圣塔克拉拉": "US", "芝加哥": "US", "西雅图": "US", "纽约": "US", "达拉斯": "US", "迈阿密": "US", "亚特兰大": "US", "华盛顿": "US", "波特兰": "US", "硅谷": "US", "旧金山": "US", "美": "US",
+    # 欧洲及其他重点地区
+    "GBR": "GB", "LHR": "GB", "LON": "GB", "英国": "GB", "伦敦": "GB",
+    "DEU": "DE", "FRA": "DE", "MUC": "DE", "BER": "DE", "德国": "DE", "法兰克福": "DE", "慕尼黑": "DE", "柏林": "DE",
+    "NLD": "NL", "AMS": "NL", "荷兰": "NL", "阿姆斯特丹": "NL",
+    "FRA": "FR", "CDG": "FR", "PAR": "FR", "法国": "FR", "巴黎": "FR",  # 注意：FRA在航空是法兰克福，国家代码是法国，在此类脚本通常法兰克福更泛滥，但已归DE
+    "AUS": "AU", "SYD": "AU", "MEL": "AU", "BNE": "AU", "澳大利亚": "AU", "澳洲": "AU", "悉尼": "AU", "墨尔本": "AU", "布里斯班": "AU",
+    "CAN": "CA", "YVR": "CA", "YYZ": "CA", "YUL": "CA", "加拿大": "CA", "多伦多": "CA", "温哥华": "CA", "蒙特利尔": "CA",
+    "IND": "IN", "BOM": "IN", "DEL": "IN", "印度": "IN", "孟买": "IN", "新德里": "IN",
+    "RUS": "RU", "SVO": "RU", "VVO": "RU", "KHV": "RU", "俄罗斯": "RU", "莫斯科": "RU", "圣彼得堡": "RU", "伯力": "RU", "海参崴": "RU", "新西伯利亚": "RU",
+    "ZAF": "ZA", "JNB": "ZA", "南非": "ZA", "约翰内斯堡": "ZA",
+    "BRA": "BR", "GRU": "BR", "SAO": "BR", "巴西": "BR", "圣保罗": "BR",
+    "MYS": "MY", "KUL": "MY", "马来西亚": "MY", "吉隆坡": "MY",
+    "IDN": "ID", "CGK": "ID", "印尼": "ID", "印度尼西亚": "ID", "雅加达": "ID",
+    "THA": "TH", "BKK": "TH", "泰国": "TH", "曼谷": "TH",
+    "VNM": "VN", "SGN": "VN", "HAN": "VN", "越南": "VN", "胡志明市": "VN", "河内": "VN",
+    "PHL": "PH", "MNL": "PH", "菲律宾": "PH", "马尼拉": "PH",
+    "ARE": "AE", "DXB": "AE", "阿联酋": "AE", "迪拜": "AE",
+    "MAC": "MO", "MFM": "MO", "澳门": "MO", "澳": "MO", "中国": "CN",
+    "ITA": "IT", "MIL": "IT", "ROM": "IT", "意大利": "IT", "米兰": "IT", "罗马": "IT",
+    "ESP": "ES", "MAD": "ES", "西班牙": "ES", "马德里": "ES",
+    "CHE": "CH", "ZRH": "CH", "GVA": "CH", "瑞士": "CH", "苏黎世": "CH", "日内瓦": "CH",
+    "SWE": "SE", "STO": "SE", "瑞典": "SE", "斯德哥尔摩": "SE"
 }
 
-# 构建合并的查询表
+# 组合词典
 COUNTRY_MAP = {k: v for k, v in _BASE_MAP.items()}
 for k, v in _ALIASES.items():
     if v in _BASE_MAP:
         COUNTRY_MAP[k.upper()] = _BASE_MAP[v]
 
-# 中文别名按长度降序排序，优先匹配长词（防止“港”等短词误杀）
+# 中文别名按长度降序排序（防止“港”等单字提前抢占多字词汇）
 CHINESE_ALIASES_SORTED = sorted([k for k in _ALIASES.keys() if re.search(r'[\u4e00-\u9fa5]', k)], key=len, reverse=True)
 
 
@@ -107,11 +118,9 @@ def get_only_ip(raw):
     return None
 
 def is_ad_domain(text):
-    # 识别类似 cf.877774.xyz / saas.sin.fan 的域名广告
-    # 域名一般不含中文
+    # 排斥广告域名
     if re.search(r'[\u4e00-\u9fa5]', text):
         return False
-    # 匹配字母数字开头，中间有点，字母结尾的常见域名格式
     return bool(re.match(r"^[a-zA-Z0-9][a-zA-Z0-9\-\.]*\.[a-zA-Z]{2,}$", text.strip()))
 
 def rebuild_line(raw):
@@ -124,7 +133,6 @@ def rebuild_line(raw):
     base = parts[0]
     remark = parts[1] if len(parts) > 1 else ""
 
-    # IPv6 无脑替换
     if is_ipv6:
         return f"{base}#优选IPV6"
 
@@ -132,14 +140,13 @@ def rebuild_line(raw):
         return f"{base}#{ip}"
 
     raw_remark_parts = [p.strip() for p in remark.split("|") if p.strip()]
-    
     valid_parts = []
-    # 【清洗过滤】：删掉尾部跟IP一样的段落、删掉广告域名
+    
+    # 【清洗阶段】：全面击杀 IP、IP+端口、以及广告域名
     for p in raw_remark_parts:
-        # 如果这段文本就是 IP，丢弃
-        if p == ip or re.fullmatch(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", p):
+        # 正则说明：匹配纯数字IP，以及末尾可选的 ":端口"
+        if re.fullmatch(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d{1,5})?", p):
             continue
-        # 如果是域名广告，丢弃
         if is_ad_domain(p):
             continue
         valid_parts.append(p)
@@ -148,16 +155,16 @@ def rebuild_line(raw):
     custom_name = None
     rest_parts = []
     
-    # 【智能匹配】：提取地区、分离定制名字
+    # 【智能解析】：匹配地区与分离专属名
     for p in valid_parts:
         upper_p = p.upper()
         
-        # 1. 完全匹配机场代码或中文名 (如 LAX, HKG, 狮城)
+        # 1. 绝对匹配：如 HKG, LAX 或 "狮城" 作为一个单独块存在
         if upper_p in COUNTRY_MAP:
             if not country_info: country_info = COUNTRY_MAP[upper_p]
-            continue # 这是纯地理位置，提纯后丢弃原段落
+            continue
             
-        # 2. 已经包含了完整的国旗+名字
+        # 2. 已经包含了带国旗的标准名
         is_flag = False
         for mapped_val in set(COUNTRY_MAP.values()):
             if mapped_val in p:
@@ -167,28 +174,30 @@ def rebuild_line(raw):
         if is_flag:
             continue
             
-        # 3. 包含中文别名（如 “港岛古惑” 中包含 “港岛”）
+        # 3. 包含中文别名（如 "坡县狮城01" 包含 "坡县"）
         found_alias = None
         for alias in CHINESE_ALIASES_SORTED:
-            if len(alias) >= 2 and alias in p:
+            # 单个汉字只有在全字匹配时才用(防止误杀)，2字及以上可以直接模糊匹配
+            if (len(alias) >= 2 and alias in p) or alias == p:
                 found_alias = alias
                 break
+                
         if found_alias and not country_info:
             country_info = COUNTRY_MAP[found_alias.upper()]
                 
-        # 4. 隐式包含机场英文简写（如 "移动-LAX"）
+        # 4. 隐式包含常见字母缩写 (如 AWS-SGP-01)
         if not country_info:
-            m = re.search(r'(?i)\b([A-Z]{2,3})\b', p)
+            m = re.search(r'(?i)\b([A-Z]{2,4})\b', p)
             if m and m.group(1).upper() in COUNTRY_MAP:
                 country_info = COUNTRY_MAP[m.group(1).upper()]
                 
-        # 提取完位置信息后，不是纯地点的文字，留作定制名
+        # 扣除国家信息段落后，第一个出现的段落算作专属名
         if custom_name is None:
             custom_name = p
         else:
             rest_parts.append(p)
             
-    # 【重组拼装】：国旗 -> 定制名 -> 其他信息
+    # 【组装】：国旗 -> 名字 -> 剩下的属性
     new_remark_list = []
     if country_info:
         new_remark_list.append(country_info)
@@ -198,7 +207,7 @@ def rebuild_line(raw):
     
     new_remark = " | ".join(new_remark_list)
     
-    # 智能兜底：如果广告被删空了，或者根本没文字，就用 IP
+    # 兜底：如果所有字符都被清洗（全是IP或广告），只能退回用IP做名字
     if not new_remark:
         new_remark = ip
         
@@ -217,7 +226,6 @@ def domain_to_lines(domain):
                 remark = "优选IPV6"
             else:
                 base = f"{ip}:443"
-                # 域名解析出来的IPv4，备注不要用域名，直接用IP
                 remark = ip
 
             out.append([ip, f"{base}#{remark}"])
