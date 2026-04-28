@@ -66,6 +66,9 @@
     </div>
 
     <div class="container" id="tc" style="display:none;">
+      <div style="font-weight:bold; margin-bottom:15px; border-bottom:1px solid var(--c); padding-bottom:5px;">>>> 订阅文件与模板配置</div>
+      <div id="file-config-list" style="margin-bottom:30px;"></div>
+      
       <div style="font-weight:bold; margin-bottom:15px; border-bottom:1px solid var(--c); padding-bottom:5px;">>>> 节点输出模板</div>
       <div id="tpl-list"></div>
       <div class="fab-br">
@@ -101,7 +104,7 @@
     }
     d();
 
-    let config = { groups: [], templates: [] };
+    let config = { global: {}, groups: [], templates: [] };
     let fileSha = '';
     let currentToken = '';
 
@@ -156,12 +159,13 @@
         config = JSON.parse(decodeURIComponent(escape(atob(data.content))));
         if(!config.groups) config.groups = [];
         if(!config.templates) config.templates = [];
+        if(!config.global) config.global = { filename: 'max', tid: config.templates[0]?.id };
         
         currentToken = tokenInput; 
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
         renderGroups();
-        renderTpls();
+        renderPathsAndTpls();
         toast('接入成功');
       } catch (e) {
         document.getElementById('login-token').value = '';
@@ -203,18 +207,13 @@
     }
 
     function renderGroups() {
-      const tplOptions = config.templates.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
       const html = config.groups.map((g, i) => `
         <details open>
           <summary>
             <span><input value="${g.name}" onchange="config.groups[${i}].name=this.value" style="width:120px; border:none; border-bottom:1px solid var(--c); background:none; padding:2px; margin:0"></span>
-            <span class="del-btn" onclick="config.groups.splice(${i},1); renderGroups();">✖ 删除</span>
+            <span class="del-btn" onclick="config.groups.splice(${i},1); renderGroups(); renderPathsAndTpls();">✖ 删除</span>
           </summary>
           <div class="group-body">
-            <select style="margin-bottom:15px; width:50%;" onchange="config.groups[${i}].tid=this.value">
-              <option value="">-- 选择模板 --</option>
-              ${config.templates.map(t => `<option value="${t.id}" ${t.id === g.tid ? 'selected' : ''}>${t.name}</option>`).join('')}
-            </select>
             <textarea class="add-api" id="add-api-${i}" placeholder="录入 API 链接或纯节点，按行分割"></textarea>
             ${g.urls.map((u, ui) => `
               <div class="url-row">
@@ -229,8 +228,10 @@
     }
 
     function addGroup() {
-      config.groups.push({ id: 'g' + Date.now(), name: '未命名分组', urls: [], tid: config.templates[0]?.id || '' });
+      const newName = '未命名分组';
+      config.groups.push({ id: 'g' + Date.now(), name: newName, filename: newName, urls: [], tid: config.templates[0]?.id || '' });
       renderGroups();
+      renderPathsAndTpls();
     }
 
     function flushInputs() {
@@ -245,52 +246,76 @@
       renderGroups();
     }
 
-    function renderTpls() {
-      const html = config.templates.map((t, i) => `
+    function renderPathsAndTpls() {
+      let filesHtml = `
+        <div class="url-row" style="margin-bottom:15px; background:rgba(0,255,65,0.05); padding:10px;">
+          <span style="width:70px; font-weight:bold;">[全局总集]</span>
+          <input value="${config.global.filename}" onchange="config.global.filename=this.value.replace(/[^a-zA-Z0-9_-\\u4e00-\\u9fa5]/g,'')">
+          <span style="margin:0 10px">.txt</span>
+          <select style="width:150px; margin:0;" onchange="config.global.tid=this.value">
+            ${config.templates.map(t => `<option value="${t.id}" ${t.id === config.global.tid ? 'selected' : ''}>${t.name}</option>`).join('')}
+          </select>
+        </div>
+      `;
+
+      filesHtml += config.groups.map((g, i) => `
+        <div class="url-row" style="margin-bottom:10px; padding:0 10px;">
+          <span style="width:70px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">[${g.name}]</span>
+          <input value="${g.filename}" onchange="config.groups[${i}].filename=this.value.replace(/[^a-zA-Z0-9_-\\u4e00-\\u9fa5]/g,'')">
+          <span style="margin:0 10px">.txt</span>
+          <select style="width:150px; margin:0;" onchange="config.groups[${i}].tid=this.value">
+            ${config.templates.map(t => `<option value="${t.id}" ${t.id === g.tid ? 'selected' : ''}>${t.name}</option>`).join('')}
+          </select>
+        </div>
+      `).join('');
+      
+      document.getElementById('file-config-list').innerHTML = filesHtml;
+
+      const tplHtml = config.templates.map((t, i) => `
         <details open>
           <summary>
-            <span><input value="${t.name}" onchange="config.templates[${i}].name=this.value" style="width:120px; border:none; border-bottom:1px solid var(--c); background:none; padding:2px; margin:0"></span>
-            <span class="del-btn" onclick="config.templates.splice(${i},1); renderTpls(); renderGroups();">✖ 删除</span>
+            <span><input value="${t.name}" onchange="config.templates[${i}].name=this.value; renderPathsAndTpls()" style="width:120px; border:none; border-bottom:1px solid var(--c); background:none; padding:2px; margin:0"></span>
+            <span class="del-btn" onclick="config.templates.splice(${i},1); renderPathsAndTpls();">✖ 删除</span>
           </summary>
           <div class="group-body">
             <div style="margin-bottom:10px;">
               ${t.fmt.map((fk, fi) => `
                 <span class="tk-tag">
                   ${fk.startsWith('txt:') ? '文字: ' + fk.substring(4) : tkNameMap[fk]}
-                  <span class="tk-del" onclick="config.templates[${i}].fmt.splice(${fi},1); renderTpls()">✖</span>
+                  <span class="tk-del" onclick="config.templates[${i}].fmt.splice(${fi},1); renderPathsAndTpls()">✖</span>
                 </span>
               `).join('')}
             </div>
             <div style="display:flex; flex-wrap:wrap; gap:5px;">
-              <button class="btn" style="padding:4px 8px; font-size:11px" onclick="config.templates[${i}].fmt.push('ip_domain'); renderTpls()">+ IP/域名</button>
-              <button class="btn" style="padding:4px 8px; font-size:11px" onclick="config.templates[${i}].fmt.push('original'); renderTpls()">+ 原始名称</button>
-              <button class="btn" style="padding:4px 8px; font-size:11px" onclick="config.templates[${i}].fmt.push('space'); renderTpls()">+ 空格</button>
-              <button class="btn" style="padding:4px 8px; font-size:11px" onclick="config.templates[${i}].fmt.push('inc'); renderTpls()">+ 递增</button>
-              <button class="btn" style="padding:4px 8px; font-size:11px" onclick="config.templates[${i}].fmt.push('inc01'); renderTpls()">+ 递增01</button>
-              <button class="btn" style="padding:4px 8px; font-size:11px" onclick="promptUI('输入自定义文字', v => { if(v){ config.templates[${i}].fmt.push('txt:'+v); renderTpls(); } })">+ 自定义文字</button>
+              <button class="btn" style="padding:4px 8px; font-size:11px" onclick="config.templates[${i}].fmt.push('ip_domain'); renderPathsAndTpls()">+ IP/域名</button>
+              <button class="btn" style="padding:4px 8px; font-size:11px" onclick="config.templates[${i}].fmt.push('original'); renderPathsAndTpls()">+ 原始名称</button>
+              <button class="btn" style="padding:4px 8px; font-size:11px" onclick="config.templates[${i}].fmt.push('space'); renderPathsAndTpls()">+ 空格</button>
+              <button class="btn" style="padding:4px 8px; font-size:11px" onclick="config.templates[${i}].fmt.push('inc'); renderPathsAndTpls()">+ 递增</button>
+              <button class="btn" style="padding:4px 8px; font-size:11px" onclick="config.templates[${i}].fmt.push('inc01'); renderPathsAndTpls()">+ 递增01</button>
+              <button class="btn" style="padding:4px 8px; font-size:11px" onclick="promptUI('输入自定义文字', v => { if(v){ config.templates[${i}].fmt.push('txt:'+v); renderPathsAndTpls(); } })">+ 自定义文字</button>
             </div>
           </div>
         </details>
       `).join('');
-      document.getElementById('tpl-list').innerHTML = html || '<div style="opacity:0.5">暂无模板</div>';
+      document.getElementById('tpl-list').innerHTML = tplHtml || '<div style="opacity:0.5">暂无模板</div>';
     }
 
     function addTpl() {
       config.templates.push({ id: 't' + Date.now(), name: '新模板', fmt: ['original'] });
-      renderTpls();
+      renderPathsAndTpls();
     }
 
     function renderLinks() {
       const repo = getAutoRepo();
       if (!repo) return document.getElementById('api-links').innerHTML = '环境验证失败，无法映射网络链路';
       
-      let html = config.groups.map(g => {
-        const url = `https://raw.githubusercontent.com/${repo}/main/api/${g.name}.txt`;
-        return `<div style="margin-bottom:5px;">[分组] ${g.name}</div><div class="copy-box" onclick="navigator.clipboard.writeText('${url}'); toast('链接已复制')">${url}</div>`;
+      const maxUrl = `https://raw.githubusercontent.com/${repo}/main/api/${config.global.filename}.txt`;
+      let html = `<div style="margin-bottom:5px;">[全局] 总订阅聚合</div><div class="copy-box" onclick="navigator.clipboard.writeText('${maxUrl}'); toast('链接已复制')">${maxUrl}</div>`;
+
+      html += config.groups.map(g => {
+        const url = `https://raw.githubusercontent.com/${repo}/main/api/${g.filename}.txt`;
+        return `<div style="margin-bottom:5px; margin-top:15px">[分组] ${g.name}</div><div class="copy-box" onclick="navigator.clipboard.writeText('${url}'); toast('链接已复制')">${url}</div>`;
       }).join('');
-      
-      const maxUrl = `https://raw.githubusercontent.com/${repo}/main/api/max.txt`;
-      html += `<div style="margin-bottom:5px; margin-top:15px">[全局] 总订阅聚合</div><div class="copy-box" onclick="navigator.clipboard.writeText('${maxUrl}'); toast('链接已复制')">${maxUrl}</div>`;
       
       document.getElementById('api-links').innerHTML = html;
     }
