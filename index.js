@@ -22,12 +22,12 @@ async function main() {
   const outDir = './output';
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir);
 
-  let allNodes = new Set();
+  const groupData = {}; 
 
-  for (const group of config.groups) {
-    const results = await Promise.all(group.urls.map(u => fetchText(u.trim())));
-    
-    let groupNodes = new Set();
+  // 1. 并发抓取所有分组内容
+  for (const group of config.groups || []) {
+    const results = await Promise.all((group.urls || []).map(u => fetchText(u.trim())));
+    const nodes = new Set();
     
     results.forEach(text => {
       const lines = text.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('<'));
@@ -49,19 +49,29 @@ async function main() {
           h = pts[0]; 
           if (pts[1]) p = pts[1];
         }
-        
-        const finalNode = `${h}:${p}#${name}`;
-        groupNodes.add(finalNode);
-        allNodes.add(finalNode);
+        nodes.add(`${h}:${p}#${name}`);
       });
     });
-
-    const sortedGroup = Array.from(groupNodes).sort();
-    fs.writeFileSync(`${outDir}/${group.name}.txt`, sortedGroup.join('\n'));
+    groupData[group.id] = nodes;
   }
 
-  const sortedAll = Array.from(allNodes).sort();
-  fs.writeFileSync(`${outDir}/max.txt`, sortedAll.join('\n'));
+  // 2. 根据用户配置的路径，生成对应的 txt 订阅文件
+  for (const pt of config.paths || []) {
+    let pathNodes = new Set();
+    
+    if (pt.groupIds && pt.groupIds.includes('all')) {
+      Object.values(groupData).forEach(set => set.forEach(n => pathNodes.add(n)));
+    } else {
+      (pt.groupIds || []).forEach(gid => {
+        if (groupData[gid]) groupData[gid].forEach(n => pathNodes.add(n));
+      });
+    }
+
+    const sorted = Array.from(pathNodes).sort();
+    const filename = pt.path.endsWith('.txt') ? pt.path : `${pt.path}.txt`;
+    fs.writeFileSync(`${outDir}/${filename}`, sorted.join('\n'));
+    console.log(`Generated ${filename} with ${sorted.length} nodes.`);
+  }
 }
 
 main();
