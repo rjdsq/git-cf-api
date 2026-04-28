@@ -22,7 +22,8 @@ async function main() {
   const outDir = './api';
   if (!fs.existsSync(outDir)) fs.mkdirSync(outDir);
 
-  const templates = config.templates && config.templates.length > 0 ? config.templates : [{ id: "t1", name: "原始命名", fmt: ["original"] }];
+  const templates = config.templates || [];
+  const globalConf = config.global || { filename: "max", tid: templates[0]?.id };
   let allNodesMap = new Map();
 
   for (const group of config.groups || []) {
@@ -65,7 +66,32 @@ async function main() {
     
     const outLines = sortedNodes.map((node, index) => {
       let nameStr = "";
-      tpl.fmt.forEach(tk => {
+      if (tpl) {
+        tpl.fmt.forEach(tk => {
+          if (tk === 'ip_domain') nameStr += node.h;
+          else if (tk === 'original') nameStr += node.originalName;
+          else if (tk === 'space') nameStr += ' ';
+          else if (tk === 'inc') nameStr += (index + 1);
+          else if (tk === 'inc01') nameStr += (index + 1).toString().padStart(2, '0');
+          else if (tk.startsWith('txt:')) nameStr += tk.substring(4);
+        });
+      } else {
+        nameStr = node.originalName;
+      }
+      return `${node.h}:${node.p}#${nameStr}`;
+    });
+
+    const fname = group.filename || group.name;
+    fs.writeFileSync(`${outDir}/${fname}.txt`, outLines.join('\n'));
+  }
+
+  const globalTpl = templates.find(t => t.id === globalConf.tid) || templates[0];
+  const sortedAll = Array.from(allNodesMap.values()).sort((a, b) => a.h.localeCompare(b.h));
+  
+  const maxLines = sortedAll.map((node, index) => {
+    let nameStr = "";
+    if (globalTpl) {
+      globalTpl.fmt.forEach(tk => {
         if (tk === 'ip_domain') nameStr += node.h;
         else if (tk === 'original') nameStr += node.originalName;
         else if (tk === 'space') nameStr += ' ';
@@ -73,15 +99,13 @@ async function main() {
         else if (tk === 'inc01') nameStr += (index + 1).toString().padStart(2, '0');
         else if (tk.startsWith('txt:')) nameStr += tk.substring(4);
       });
-      return `${node.h}:${node.p}#${nameStr}`;
-    });
+    } else {
+      nameStr = node.originalName;
+    }
+    return `${node.h}:${node.p}#${nameStr}`;
+  });
 
-    fs.writeFileSync(`${outDir}/${group.name}.txt`, outLines.join('\n'));
-  }
-
-  const sortedAll = Array.from(allNodesMap.values()).sort((a, b) => a.h.localeCompare(b.h));
-  const maxLines = sortedAll.map(node => `${node.h}:${node.p}#${node.originalName}`);
-  fs.writeFileSync(`${outDir}/max.txt`, maxLines.join('\n'));
+  fs.writeFileSync(`${outDir}/${globalConf.filename}.txt`, maxLines.join('\n'));
 }
 
 main();
