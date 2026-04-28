@@ -1,34 +1,31 @@
-name: Node Aggregator Auto Update
-
+name: Auto IP Collect
 on:
   schedule:
-    - cron: '0 * * * *'
-  push:
-    paths:
-      - 'config.json'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  build:
+  run:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Install Python
+        uses: actions/setup-python@v5
         with:
-          node-version: '18'
+          python-version: "3.11"
 
-      - name: Run Aggregator Script
-        run: node index.js
+      - name: Install Dependence
+        run: pip install requests
 
-      - name: Commit and Push Results
+      - name: Run Script
+        run: python ip_collect.py
+
+      - name: Commit & Push
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add api/
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto Update Nodes" && git push)
+          git config --global user.name "actions-bot"
+          git config --global user.email "bot@github.com"
+          git add max.txt
+          git commit -m "auto update valid ip line" 2>/dev/null || true
+          git push
