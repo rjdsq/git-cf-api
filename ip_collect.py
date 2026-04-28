@@ -2,6 +2,7 @@ import re
 import subprocess
 import requests
 import os
+import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 API_LIST = [
@@ -20,7 +21,15 @@ API_LIST = [
     "https://cf.090227.xyz/ct?ips=6"
 ]
 
-IPV4_REG = re.compile(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}")
+DOMAIN_LIST = [
+    "cf.tencentapp.cn",
+    "cloudflare-dl.byoip.top",
+    "cf.877774.xyz",
+    "saas.sin.fan",
+    "bestcf.030101.xyz"
+]
+
+IP_REG = re.compile(r"(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|([0-9a-fA-F]{1,4}:){1,7}[0-9a-fA-F]{1,4})")
 
 def fetch_content(url):
     try:
@@ -32,16 +41,34 @@ def fetch_content(url):
         return ""
 
 def parse_ip(line):
-    match = IPV4_REG.search(line)
+    match = IP_REG.search(line)
     if match:
         return match.group()
     return None
 
+def resolve_domain(domain):
+    domain_ips = []
+    try:
+        res = socket.getaddrinfo(domain,None)
+        for item in res:
+            ip = item[4][0]
+            domain_ips.append(ip)
+    except Exception:
+        pass
+    return domain_ips
+
 def ping_check(ip_addr):
+    is_ipv6 = ":" in ip_addr
     if os.name == "nt":
-        args = ["ping","-n","1","-w","500",ip_addr]
+        if is_ipv6:
+            args = ["ping","-6","-n","1","-w","500",ip_addr]
+        else:
+            args = ["ping","-n","1","-w","500",ip_addr]
     else:
-        args = ["ping","-c","1","-W","0.5",ip_addr]
+        if is_ipv6:
+            args = ["ping","-6","-c","1","-W","0.5",ip_addr]
+        else:
+            args = ["ping","-c","1","-W","0.5",ip_addr]
     try:
         ret = subprocess.run(args,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=2).returncode
         return ret == 0
@@ -57,15 +84,24 @@ def main():
             trim_line = item.strip()
             if trim_line:
                 line_pool.append(trim_line)
+    for dom in DOMAIN_LIST:
+        ips = resolve_domain(dom)
+        for ip in ips:
+            line_pool.append(f"{ip}:443#{dom}")
     unique_line = list(set(line_pool))
     valid_data = []
+    task_map = {}
+    for line in unique_line:
+        ip = parse_ip(line)
+        if ip:
+            task_map[ip] = line
     with ThreadPoolExecutor(max_workers=20) as executor:
-        future_to_line = {executor.submit(ping_check, parse_ip(line)): line for line in unique_line if parse_ip(line)}
-        for future in as_completed(future_to_line):
-            line = future_to_line[future]
+        future_ip = {executor.submit(ping_check,ip):(ip,task_map[ip]) for ip in task_map}
+        for future in as_completed(future_ip):
+            ip,raw_line = future_ip[future]
             try:
                 if future.result():
-                    valid_data.append(line)
+                    valid_data.append(raw_line)
             except:
                 continue
     with open("max.txt","w",encoding="utf-8") as f:
