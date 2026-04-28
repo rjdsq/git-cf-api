@@ -17,8 +17,8 @@ API_LIST = [
     "https://cf.090227.xyz/ct?ips=6",
     "https://raw.githubusercontent.com/ymyuuu/IPDB/main/bestproxy.txt",
     "https://raw.githubusercontent.com/cmliu/WorkerVless2sub/main/addressesapi.txt",
-    "https://raw.githubusercontent.com/cmliu/WorkerVless2sub/main/addressesapi.txt",
-    "https://ipdb.api.030101.xyz/?type=bestproxy&country=true"
+
+    "https://ipdb.api.030101.xyz/?type=bestcf"
     
 ]
 
