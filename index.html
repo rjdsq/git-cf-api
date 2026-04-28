@@ -83,22 +83,19 @@
       <div style="font-weight:bold; margin-bottom:15px; border-bottom:1px solid var(--c); padding-bottom:5px;">>>> 核心环境变量</div>
       
       <label>控制台登录密码 (本地校验)</label>
-      <input type="password" id="sys-pwd" placeholder="设置后需使用此密码进入界面">
-      
-      <label>GitHub 仓库名 (格式: username/repo)</label>
-      <input id="sys-repo" placeholder="必填">
+      <input type="password" id="password" placeholder="设置后需使用此密码进入界面">
       
       <label>GitHub Token (需 repo 权限)</label>
-      <input type="password" id="sys-token" placeholder="ghp_xxxxxxxx">
+      <input type="password" id="token" placeholder="ghp_xxxxxxxx">
       
-      <button class="btn btn-main" style="width:100%; margin-top:15px;" onclick="saveSystem()">保存系统配置</button>
+      <button class="btn btn-main" style="width:100%; margin-top:15px;" onclick="saveSystem()">保存环境变量</button>
     </div>
 
     <nav class="nav">
       <div class="ni active" id="n-a" onclick="switchTab('a')">[ API池 ]</div>
       <div class="ni" id="n-c" onclick="switchTab('c')">[ API配置 ]</div>
       <div class="ni" id="n-l" onclick="switchTab('l')">[ API列表 ]</div>
-      <div class="ni" id="n-s" onclick="switchTab('s')">[ 系统配置 ]</div>
+      <div class="ni" id="n-s" onclick="switchTab('s')">[ 环境变量 ]</div>
     </nav>
   </div>
 
@@ -128,10 +125,23 @@
       setTimeout(() => el.style.opacity = 0, 2500);
     }
 
+    // --- 自动获取当前 GitHub 仓库名 ---
+    function getAutoRepo() {
+      const host = window.location.hostname;
+      const path = window.location.pathname;
+      // 匹配标准的 username.github.io/repo 格式
+      if (host.includes('github.io')) {
+        const owner = host.split('.')[0];
+        const repo = path.split('/')[1] || '';
+        return `${owner}/${repo}`.replace(/\/$/, ''); // 清理末尾斜杠
+      }
+      return null;
+    }
+
     // --- 登录逻辑 ---
     function checkLogin() {
       const input = document.getElementById('login-pwd').value;
-      const savedPwd = localStorage.getItem('sys_pwd') || '';
+      const savedPwd = localStorage.getItem('password') || '';
       if (savedPwd === '' || input === savedPwd) {
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('main-app').style.display = 'block';
@@ -151,25 +161,31 @@
       if (x === 'l') renderLinks();
     }
 
-    // --- 系统配置读取/保存 ---
+    // --- 环境变量读取/保存 ---
     function loadSystemConfig() {
-      document.getElementById('sys-pwd').value = localStorage.getItem('sys_pwd') || '';
-      document.getElementById('sys-repo').value = localStorage.getItem('sys_repo') || '';
-      document.getElementById('sys-token').value = localStorage.getItem('sys_token') || '';
+      document.getElementById('password').value = localStorage.getItem('password') || '';
+      document.getElementById('token').value = localStorage.getItem('token') || '';
     }
 
     function saveSystem() {
-      localStorage.setItem('sys_pwd', document.getElementById('sys-pwd').value);
-      localStorage.setItem('sys_repo', document.getElementById('sys-repo').value);
-      localStorage.setItem('sys_token', document.getElementById('sys-token').value);
-      toast('系统配置已保存本地');
+      localStorage.setItem('password', document.getElementById('password').value);
+      localStorage.setItem('token', document.getElementById('token').value);
+      toast('环境变量已保存本地');
     }
 
     // --- 与 GitHub 交互 ---
     async function fetchFromGitHub() {
-      const repo = localStorage.getItem('sys_repo');
-      const token = localStorage.getItem('sys_token');
-      if (!repo || !token) { toast('请先配置仓库和Token'); return; }
+      const repo = getAutoRepo();
+      const token = localStorage.getItem('token');
+      
+      if (!repo) {
+        toast('非 GitHub Pages 环境，无法自动识别仓库名');
+        return;
+      }
+      if (!token) { 
+        toast('请先在环境变量中配置 Token'); 
+        return; 
+      }
 
       toast('正在拉取云端配置...');
       try {
@@ -186,15 +202,15 @@
         renderPaths();
         toast('配置同步完成');
       } catch (e) {
-        toast('拉取失败，请检查配置或初始化 config.json');
+        toast('拉取失败，请检查 Token 或初始化 config.json');
       }
     }
 
     async function saveToGitHub() {
       flushInputs();
-      const repo = localStorage.getItem('sys_repo');
-      const token = localStorage.getItem('sys_token');
-      if (!repo || !token || !fileSha) { toast('凭证不足，无法保存'); return; }
+      const repo = getAutoRepo();
+      const token = localStorage.getItem('token');
+      if (!repo || !token || !fileSha) { toast('环境或凭证不足，无法保存'); return; }
 
       toast('正在写入 GitHub...');
       try {
@@ -203,7 +219,7 @@
           method: 'PUT',
           headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            message: "Update sub rules via Terminal",
+            message: "Update config via Web UI",
             content: btoa(unescape(encodeURIComponent(contentStr))),
             sha: fileSha
           })
@@ -211,7 +227,7 @@
         if (!res.ok) throw new Error();
         const data = await res.json();
         fileSha = data.content.sha;
-        toast('保存成功！已触发后台打包任务');
+        toast('保存成功！已触发后台更新任务');
       } catch (e) {
         toast('写入失败');
       }
@@ -263,7 +279,6 @@
         config.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
 
       const html = config.paths.map((p, i) => {
-        // 渲染已选分组
         const selectedHTML = (p.groupIds || []).map(gid => {
           let gname = gid === 'all' ? '全部分组' : (config.groups.find(x => x.id === gid)?.name || '未知分组');
           return `<span style="background:rgba(0,255,65,0.1); padding:2px 8px; margin-right:5px; border:1px solid var(--c); font-size:11px;">${gname} <span style="cursor:pointer" onclick="config.paths[${i}].groupIds=config.paths[${i}].groupIds.filter(x=>x!=='${gid}'); renderPaths()">✖</span></span>`;
@@ -298,9 +313,9 @@
 
     // --- 链接分发 (API列表) ---
     function renderLinks() {
-      const repo = localStorage.getItem('sys_repo');
+      const repo = getAutoRepo();
       if (!repo) {
-        document.getElementById('api-links').innerHTML = '请先在系统配置中设置 GitHub 仓库';
+        document.getElementById('api-links').innerHTML = '当前不在 GitHub Pages 环境，无法生成链接';
         return;
       }
       const html = config.paths.map(p => {
