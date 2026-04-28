@@ -1,10 +1,15 @@
 {
+  "global": {
+    "filename": "max",
+    "tid": "t1"
+  },
   "groups": [
     {
       "id": "g1",
       "name": "默认源",
-      "urls": [],
-      "tid": "t1"
+      "filename": "默认源",
+      "tid": "t1",
+      "urls": []
     }
   ],
   "templates": [
