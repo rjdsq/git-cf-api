@@ -182,8 +182,16 @@ def main():
         host = extract_host(base)
 
         if host in seen_hosts:
-            duplicates_log.append(f"{seen_hosts[host]} 和 {s} 重复")
+            # === 修改了这里的日志格式 ===
+            # 将首次记录和重复记录换行显示，并且两组数据之间留有明显的空行
+            log_str = (
+                f"【首次记录】\n{seen_hosts[host]}\n\n"
+                f"【发现重复】\n{s}\n\n"
+                f"{'-'*50}\n\n" # 加一条分割线并在下一条数据前空两行，看起来更清爽
+            )
+            duplicates_log.append(log_str)
             return
+            
         seen_hosts[host] = s
 
         if is_ipv4_addr(host):
@@ -232,7 +240,7 @@ def main():
 
     with open("ip.log", "w", encoding="utf-8") as f:
         for log in duplicates_log:
-            f.write(log + "\n")
+            f.write(log)
 
     print("="*35)
     print(" 数据处理概览")
