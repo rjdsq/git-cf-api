@@ -1,4 +1,4 @@
-Name: 自动化IP 过滤采集
+name: 自动化IP过滤采集
 on:
   schedule:
     - cron: '*/30 * * * *'
@@ -24,6 +24,9 @@ jobs:
 
       - name: Run IP Script
         run: python ip.py
+
+      - name: Run Ping Script
+        run: python ping.py
 
       - name: Commit & Push
         run: |
