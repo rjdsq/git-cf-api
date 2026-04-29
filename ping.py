@@ -60,8 +60,6 @@ if __name__ == '__main__':
         f"丢弃数量：{discarded_count}",
         f"存活率：{round(kept_count/total_count*100, 2) if total_count > 0 else 0}%",
         f"--------------------------",
-        f"\n[保留清单]",
-        *keep_list,
         f"\n[丢弃清单]",
         *fail_list
     ]
