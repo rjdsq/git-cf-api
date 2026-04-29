@@ -1,3 +1,4 @@
+          git push origin main --force
 name: 自动化IP过滤采集
 on:
   schedule:
@@ -25,11 +26,10 @@ jobs:
       - name: Run IP Script
         run: python ip.py
 
-
       - name: Commit & Push
         run: |
           git config --global user.name "rjdsq"
           git config --global user.email "你的GitHub邮箱"
-          git add max.txt 
+          git add max.txt ip.log
           git commit -m "auto update max.txt and logs" || echo "no changes"
           git push origin main --force
