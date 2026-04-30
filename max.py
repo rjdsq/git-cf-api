@@ -78,20 +78,22 @@ def merge_and_sort_files():
     final_output.extend(groups['domain_no_remark'])
 
     final_count = len(final_output)
-    filtered_count = total_raw_count - final_count
+    duplicate_count = total_raw_count - final_count
 
     overview_lines = [
-        "合并概览",
-        f"初始总数 {total_raw_count}",
-        f"过滤重复 {filtered_count}",
-        f"最终总计 {final_count}",
-        f"域名备注 {len(groups['domain_remark'])}",
-        f"IP电信 {len(groups['telecom'])}",
-        f"IP移动 {len(groups['mobile'])}",
-        f"IP联通 {len(groups['unicom'])}",
-        f"IP其他 {len(groups['pure_ip_other'])}",
-        f"IP无备注 {len(groups['pure_ip_none'])}",
-        f"域名无备注 {len(groups['domain_no_remark'])}"
+        "========== 采集汇总 ==========",
+        f"项目原始总数: {total_raw_count}",
+        f"重复过滤数量: {duplicate_count}",
+        f"最终保留总数: {final_count}",
+        "---------- 详细分类 ----------",
+        f"1.域名带备注: {len(groups['domain_remark'])}",
+        f"2.纯IP-电信: {len(groups['telecom'])}",
+        f"3.纯IP-移动: {len(groups['mobile'])}",
+        f"4.纯IP-联通: {len(groups['unicom'])}",
+        f"5.纯IP-其他: {len(groups['pure_ip_other'])}",
+        f"6.纯IP-无注: {len(groups['pure_ip_none'])}",
+        f"7.域名-无注: {len(groups['domain_no_remark'])}",
+        "=============================="
     ]
 
     for line in overview_lines:
