@@ -15,13 +15,18 @@ def merge_and_sort_files():
                         continue
                     
                     total_raw_count += 1
+                    
+                    # 增强版分割逻辑：兼容没有#的情况，也兼容备注里有多个#的情况
                     if '#' in line:
                         parts = line.split('#', 1)
                         addr = parts[0].strip()
                         remark = parts[1].strip()
                     else:
-                        addr = line
+                        addr = line.strip()
                         remark = ""
+
+                    if not addr:
+                        continue
 
                     if addr not in merged_data:
                         merged_data[addr] = []
@@ -41,6 +46,7 @@ def merge_and_sort_files():
 
     for addr, remarks in merged_data.items():
         merged_remark = " | ".join(remarks)
+        # 兼容性IP判断正则
         is_pure_ip = bool(re.match(r"^\d{1,3}(\.\d{1,3}){3}$", addr))
 
         if merged_remark:
@@ -65,6 +71,7 @@ def merge_and_sort_files():
             else:
                 groups['pure_ip_other'].append(line_str)
 
+    # 各组内按长度排序
     for key in groups:
         groups[key].sort(key=len)
 
