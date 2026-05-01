@@ -11,10 +11,8 @@ def merge_and_sort_files():
     now_utc = datetime.datetime.utcnow()
     bj_time = now_utc + datetime.timedelta(hours=8)
     
-    log_time_std = bj_time.strftime('%Y-%m-%d %H:%M:%S')
-    
-    m, d, h, mi = bj_time.month, bj_time.day, bj_time.hour, bj_time.minute
-    data_time_str = f"{m}/{d}/{h}:{mi}"
+    std_time = bj_time.strftime('%Y-%m-%d %H:%M:%S')
+    data_tag = f"{bj_time.month}/{bj_time.day}/{bj_time.hour}:{bj_time.minute}"
 
     for file_name in input_files:
         if os.path.exists(file_name):
@@ -38,88 +36,79 @@ def merge_and_sort_files():
                     if addr not in merged_data:
                         merged_data[addr] = []
                     else:
-                        duplicate_details.append(f"重复项: 地址 [{addr}] 来源于 [{file_name}]")
+                        duplicate_details.append(f"┃ ⚡ 重复地址: {addr} ➔ 来源: {file_name}")
                     
                     if remark and remark not in merged_data[addr]:
                         merged_data[addr].append(remark)
 
     groups = {
-        'domain_remark': [], 'telecom': [], 'mobile': [], 
-        'unicom': [], 'ip_other': [], 'ip_none': [], 'domain_none': []
+        '域名备注': [], '电信线路': [], '移动线路': [], 
+        '联通线路': [], '其他备注': [], '纯净IP': [], '纯净域名': []
+    }
+    
+    key_map = {
+        'domain_remark': '域名备注', 'telecom': '电信线路', 'mobile': '移动线路',
+        'unicom': '联通线路', 'ip_other': '其他备注', 'ip_none': '纯净IP', 'domain_none': '纯净域名'
     }
 
     for addr, remarks in merged_data.items():
-        if remarks:
-            merged_remark = " | ".join(remarks) + f" | {data_time_str}"
-        else:
-            merged_remark = data_time_str
-
+        merged_remark = " | ".join(remarks) + f" | {data_tag}" if remarks else data_tag
         is_domain = any(c.isalpha() for c in addr)
         line_str = f"{addr}#{merged_remark}"
 
         if is_domain:
-            if remarks: groups['domain_remark'].append(line_str)
-            else: groups['domain_none'].append(line_str)
+            target = '域名备注' if remarks else '纯净域名'
         else:
             raw_remarks_str = " ".join(remarks)
-            if not remarks: groups['ip_none'].append(line_str)
-            elif '电信' in raw_remarks_str: groups['telecom'].append(line_str)
-            elif '移动' in raw_remarks_str: groups['mobile'].append(line_str)
-            elif '联通' in raw_remarks_str: groups['unicom'].append(line_str)
-            else: groups['ip_other'].append(line_str)
+            if not remarks: target = '纯净IP'
+            elif '电信' in raw_remarks_str: target = '电信线路'
+            elif '移动' in raw_remarks_str: target = '移动线路'
+            elif '联通' in raw_remarks_str: target = '联通线路'
+            else: target = '其他备注'
+        groups[target].append(line_str)
 
     final_output = []
-    order = ['domain_remark', 'telecom', 'mobile', 'unicom', 'ip_other', 'ip_none', 'domain_none']
+    order = ['域名备注', '电信线路', '移动线路', '联通线路', '其他备注', '纯净IP', '纯净域名']
     for key in order:
         groups[key].sort(key=len)
         final_output.extend(groups[key])
 
     final_count = len(merged_data)
     
-    log_content = [
-        "==========================================",
-        "          Cloudflare IP 采集日志          ",
-        "==========================================",
-        f"打印时间: {log_time_std}",
-        f"数据标记: {data_time_str}",
-        "------------------------------------------",
-        "【数据概览】",
-        f"原始读取总行数: {total_raw_count}",
-        f"去重保留有效数: {final_count}",
-        f"累计过滤重复数: {len(duplicate_details)}",
-        "------------------------------------------",
-        "【文件来源统计】"
-    ]
-    
+    log = []
+    log.append("┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓")
+    log.append(f"┃ 🚀 优选 IP 采集自动化控制台  [{std_time}] ┃")
+    log.append("┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫")
+    log.append(f"┃ 📊 数据统计概览:")
+    log.append(f"┃ ┣ 📥 原始读取总量: {total_raw_count} 行")
+    log.append(f"┃ ┣ 🛒 去重保留总量: {final_count} 行")
+    log.append(f"┃ ┗ ✂️ 累计拦截重复: {len(duplicate_details)} 次")
+    log.append("┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫")
+    log.append("┃ 📂 文件来源分布:")
     for src, count in source_counts.items():
-        log_content.append(f"- {src}: {count} 行")
-        
-    log_content.append("------------------------------------------")
-    log_content.append("【结果分类占比】")
-    
+        log.append(f"┃ ┣ 📄 {src.ljust(18)} : {str(count).rjust(4)} 行")
+    log.append("┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫")
+    log.append("┃ 🔍 结果分类明细:")
     if final_count > 0:
         for key in order:
             count = len(groups[key])
-            percent = (count / final_count) * 100
-            log_content.append(f"- {key}: {count} 项 ({percent:.1f}%)")
-    
-    log_content.append("------------------------------------------")
-    log_content.append("【详细过滤清单】")
-    
+            perc = (count / final_count) * 100
+            log.append(f"┃ ┣ 🏷️ {key} : {str(count).rjust(4)} 项 ({perc:>5.1f}%)")
+    log.append("┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫")
+    log.append("┃ ⚠️ 重复项过滤审计清单:")
     if duplicate_details:
-        log_content.extend(duplicate_details)
+        log.extend(duplicate_details)
     else:
-        log_content.append("此轮运行未发现重复 IP 地址。")
-    
-    log_content.append("==========================================")
+        log.append("┃ ┗ ✅ 此轮采集未发现任何重复数据")
+    log.append("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛")
 
-    for l in log_content: print(l)
+    for line in log: print(line)
 
     with open('max.txt', 'w', encoding='utf-8') as f:
         f.write('\n'.join(final_output) + '\n')
 
     with open('max.log', 'w', encoding='utf-8') as f:
-        f.write('\n'.join(log_content) + '\n')
+        f.write('\n'.join(log) + '\n')
 
 if __name__ == '__main__':
     merge_and_sort_files()
