@@ -4,57 +4,60 @@ import datetime
 def merge_and_sort_files():
     input_files = ['cf.090227.xyz.txt', 'vps789.com.txt', 'cf-speed-dns.txt']
     merged_data = {}
-    duplicate_details = [] # 详细记录每一次重复
+    duplicate_details = []
     total_raw_count = 0
 
-    # 修正时区并确保 24 小时制 (北京时间)
+    # 修正时区（北京时间）
     bj_time = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
-    time_str = bj_time.strftime('%Y/%m/%d/%H:%M')
+    
+    # 构建自定义格式：月/日：时:分 (去除前导零)
+    # 例如：08/02 09:06 -> 8/2：9:6
+    month = bj_time.month
+    day = bj_time.day
+    hour = bj_time.hour
+    minute = bj_time.minute
+    time_str = f"{month}/{day}：{hour}:{minute}"
 
     for file_name in input_files:
         if os.path.exists(file_name):
             with open(file_name, 'r', encoding='utf-8') as f:
                 for line in f:
-                    # 注意：保留原始行内容，仅去掉末尾换行符，确保IP格式原汁原味
+                    # 保留原始行内容（含空格），仅去换行符
                     raw_line = line.replace('\n', '').replace('\r', '')
                     if not raw_line.strip():
                         continue
                     
                     total_raw_count += 1
                     
-                    # 拆分地址和备注
                     if '#' in raw_line:
                         parts = raw_line.split('#', 1)
-                        addr = parts[0] # 完全保留原始格式，不 strip 空格
+                        addr = parts[0] # 完全保留原始格式
                         remark = parts[1].strip()
                     else:
                         addr = raw_line
                         remark = ""
 
-                    # 核心去重与过滤详情记录
                     if addr not in merged_data:
                         merged_data[addr] = []
                     else:
-                        # 只要 addr 已经存在，这就是一次重复，记录其原始格式和来源文件名
+                        # 记录详细过滤清单：保留原始格式的地址和来源文件名
                         duplicate_details.append(f"重复详情: 地址 [{addr}] 在文件 [{file_name}] 中重复出现")
                     
                     if remark and remark not in merged_data[addr]:
                         merged_data[addr].append(remark)
 
-    # 分类容器
     groups = {
         'domain_remark': [], 'telecom': [], 'mobile': [], 
         'unicom': [], 'ip_other': [], 'ip_none': [], 'domain_none': []
     }
 
     for addr, remarks in merged_data.items():
-        # 组装备注，保留时间戳
+        # 备注逻辑：addr#原备注 | 8/2：18:6
         if remarks:
             merged_remark = " | ".join(remarks) + f" | {time_str}"
         else:
             merged_remark = time_str
 
-        # 判断域名还是IP
         is_domain = any(c.isalpha() for c in addr)
         line_str = f"{addr}#{merged_remark}"
 
@@ -78,10 +81,10 @@ def merge_and_sort_files():
 
     final_count = len(merged_data)
     
-    # 构造 max.log 内容
+    # 构造日志内容
     log_content = [
         "========== 采集汇总 ==========",
-        f"北京时间: {time_str} (24H)",
+        f"北京时间: {time_str}",
         f"总读取行数: {total_raw_count}",
         f"去重后总数: {final_count}",
         f"累计过滤重复次数: {len(duplicate_details)}",
