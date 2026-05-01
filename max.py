@@ -5,15 +5,16 @@ def merge_and_sort_files():
     input_files = ['cf.090227.xyz.txt', 'vps789.com.txt', 'cf-speed-dns.txt']
     merged_data = {}
     duplicate_details = []
+    source_counts = {name: 0 for name in input_files}
     total_raw_count = 0
 
-    bj_time = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
+    now_utc = datetime.datetime.utcnow()
+    bj_time = now_utc + datetime.timedelta(hours=8)
     
-    month = bj_time.month
-    day = bj_time.day
-    hour = bj_time.hour
-    minute = bj_time.minute
-    time_str = f"{month}/{day}/{hour}:{minute}"
+    log_time_std = bj_time.strftime('%Y-%m-%d %H:%M:%S')
+    
+    m, d, h, mi = bj_time.month, bj_time.day, bj_time.hour, bj_time.minute
+    data_time_str = f"{m}/{d}/{h}:{mi}"
 
     for file_name in input_files:
         if os.path.exists(file_name):
@@ -24,6 +25,7 @@ def merge_and_sort_files():
                         continue
                     
                     total_raw_count += 1
+                    source_counts[file_name] += 1
                     
                     if '#' in raw_line:
                         parts = raw_line.split('#', 1)
@@ -36,7 +38,7 @@ def merge_and_sort_files():
                     if addr not in merged_data:
                         merged_data[addr] = []
                     else:
-                        duplicate_details.append(f"重复详情: 地址 [{addr}] 在文件 [{file_name}] 中重复出现")
+                        duplicate_details.append(f"重复项: 地址 [{addr}] 来源于 [{file_name}]")
                     
                     if remark and remark not in merged_data[addr]:
                         merged_data[addr].append(remark)
@@ -48,9 +50,9 @@ def merge_and_sort_files():
 
     for addr, remarks in merged_data.items():
         if remarks:
-            merged_remark = " | ".join(remarks) + f" | {time_str}"
+            merged_remark = " | ".join(remarks) + f" | {data_time_str}"
         else:
-            merged_remark = time_str
+            merged_remark = data_time_str
 
         is_domain = any(c.isalpha() for c in addr)
         line_str = f"{addr}#{merged_remark}"
@@ -75,18 +77,41 @@ def merge_and_sort_files():
     final_count = len(merged_data)
     
     log_content = [
-        "========== 采集汇总 ==========",
-        f"北京时间: {time_str}",
-        f"总读取行数: {total_raw_count}",
-        f"去重后总数: {final_count}",
-        f"累计过滤重复次数: {len(duplicate_details)}",
-        "---------- 详细过滤清单 ----------"
+        "==========================================",
+        "          Cloudflare IP 采集日志          ",
+        "==========================================",
+        f"打印时间: {log_time_std}",
+        f"数据标记: {data_time_str}",
+        "------------------------------------------",
+        "【数据概览】",
+        f"原始读取总行数: {total_raw_count}",
+        f"去重保留有效数: {final_count}",
+        f"累计过滤重复数: {len(duplicate_details)}",
+        "------------------------------------------",
+        "【文件来源统计】"
     ]
+    
+    for src, count in source_counts.items():
+        log_content.append(f"- {src}: {count} 行")
+        
+    log_content.append("------------------------------------------")
+    log_content.append("【结果分类占比】")
+    
+    if final_count > 0:
+        for key in order:
+            count = len(groups[key])
+            percent = (count / final_count) * 100
+            log_content.append(f"- {key}: {count} 项 ({percent:.1f}%)")
+    
+    log_content.append("------------------------------------------")
+    log_content.append("【详细过滤清单】")
+    
     if duplicate_details:
         log_content.extend(duplicate_details)
     else:
-        log_content.append("此轮采集未发现重复项")
-    log_content.append("----------------------------------")
+        log_content.append("此轮运行未发现重复 IP 地址。")
+    
+    log_content.append("==========================================")
 
     for l in log_content: print(l)
 
