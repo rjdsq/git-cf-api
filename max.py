@@ -10,13 +10,13 @@ def merge_and_sort_files():
     # 修正时区（北京时间）
     bj_time = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
     
-    # 构建自定义格式：月/日：时:分 (去除前导零)
-    # 例如：08/02 09:06 -> 8/2：9:6
+    # 构建自定义格式：月/日/时:分 (去除前导零，全部用 / 分隔)
+    # 示例结果：8/5/18:6
     month = bj_time.month
     day = bj_time.day
     hour = bj_time.hour
     minute = bj_time.minute
-    time_str = f"{month}/{day}：{hour}:{minute}"
+    time_str = f"{month}/{day}/{hour}:{minute}"
 
     for file_name in input_files:
         if os.path.exists(file_name):
@@ -31,7 +31,7 @@ def merge_and_sort_files():
                     
                     if '#' in raw_line:
                         parts = raw_line.split('#', 1)
-                        addr = parts[0] # 完全保留原始格式
+                        addr = parts[0] # 完全保留原始格式（包括空格）
                         remark = parts[1].strip()
                     else:
                         addr = raw_line
@@ -52,7 +52,7 @@ def merge_and_sort_files():
     }
 
     for addr, remarks in merged_data.items():
-        # 备注逻辑：addr#原备注 | 8/2：18:6
+        # 备注逻辑：addr#原备注 | 8/5/18:6
         if remarks:
             merged_remark = " | ".join(remarks) + f" | {time_str}"
         else:
